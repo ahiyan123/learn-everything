@@ -1,0 +1,21 @@
+{
+    "app_id": "YOUR_APP_ID_HERE",
+    "name": "Sovereign Learning Engine",
+    "description": "A precision-led, API-free learning node that scales to your intellect.",
+    "version": "1.0.0",
+    "index": "index.html",
+    "icon": "assets/icon.png",
+    "csp": {
+        "script-src": ["'self'", "https://js.puter.com/v2/", "https://cdn.jsdelivr.net"],
+        "connect-src": ["'self'", "https://js.puter.com", "https://api.exa.ai"]
+    },
+    "permissions": [
+        "auth",
+        "kv",
+        "ai",
+        "http"
+    ],
+    "author": "Ahiyan Kabir",
+    "license": "GNU Affero General Public license v3.0",
+    "repository": "https://github.com/ahiyan123/learn-everything/"
+}

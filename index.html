@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sovereign Node | Powered by Puter.js</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; padding: 30px; }
+        #terminal { max-width: 900px; margin: auto; }
+        .log-entry { margin-bottom: 15px; border-left: 2px solid #1a1a1a; padding-left: 15px; }
+        .highlight { color: #ffffff; font-weight: bold; }
+        input { background: none; border: none; color: #00ff41; width: 100%; outline: none; border-top: 1px solid #222; padding: 10px 0; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+
+<div id="terminal">
+    <div id="display">Supervisor: Initializing Sovereign Protocol via Puter.js...</div>
+    <br>
+    <input type="text" id="command" placeholder="Enter topic to master..." autofocus>
+</div>
+
+<script>
+    let user = { name: "Pioneer", res: "Level_B", mastery: [] };
+
+    // 1. Initial Handshake
+    async function init() {
+        const puterUser = await puter.auth.getUser();
+        user.name = puterUser ? puterUser.username : "Pioneer";
+        
+        // Load persistent data from Puter KV
+        const saved = await puter.kv.get('mastery_data');
+        if (saved) user = JSON.parse(saved);
+
+        print(`Welcome back, <span class="highlight">${user.name}</span>. The Node is ready.`);
+        print(`Current Resolution: ${user.res}. Type a topic to begin the climb.`);
+    }
+
+    // 2. The Intelligence Loop (Puter AI Route)
+    async function processTopic(topic) {
+        print(`Supervisor: Synthesizing logic for "${topic}"...`);
+        
+        const systemPrompt = `You are a Precision Learning Supervisor. 
+        Create a 3-tier node for ${topic} in JSON. 
+        Level_A: Analogy. Level_B: Functional. Level_C: First Principles. 
+        Assessment: {q: "question", a: "exact_answer"}.`;
+
+        try {
+            // Puter.js internal AI call - No API key needed in frontend
+            const response = await puter.ai.chat(systemPrompt);
+            const node = JSON.parse(response.message.content);
+            displayNode(node, topic);
+        } catch (err) {
+            print("Error: Synthesis interrupted. Ensure your Puter session is active.");
+        }
+    }
+
+    // 3. The Mastery Gate
+    function displayNode(node, topic) {
+        const content = node[user.res] || node.Level_B;
+        print(`<br>--- [ ${topic.toUpperCase()} ] ---`);
+        print(`<span class="highlight">${content}</span>`);
+        print(`<br>[GATEKEEPER] ${node.Assessment.q}`);
+
+        // Listen for the quiz answer
+        const input = document.getElementById('command');
+        const oldHandler = input.onkeydown; 
+        
+        input.onkeydown = async (e) => {
+            if (e.key === 'Enter') {
+                const ans = input.value.trim();
+                input.value = '';
+                
+                if (ans.toLowerCase() === node.Assessment.a.toLowerCase()) {
+                    print("✔ Precision work. Mastery locked.");
+                    user.mastery.push(topic);
+                    await puter.kv.set('mastery_data', JSON.stringify(user));
+                    input.onkeydown = oldHandler; // Reset to topic mode
+                } else {
+                    print("✖ Incomplete. Re-routing to Level A for clarity.");
+                    user.res = "Level_A";
+                    await puter.kv.set('mastery_data', JSON.stringify(user));
+                }
+            }
+        };
+    }
+
+    function print(msg) {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML = msg;
+        document.getElementById('display').appendChild(div);
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    document.getElementById('command').addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter' && e.target.onkeydown === null) {
+            const val = e.target.value;
+            e.target.value = '';
+            await processTopic(val);
+        }
+    });
+
+    init();
+</script>
+</body>
+</html>

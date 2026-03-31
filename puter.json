@@ -13,7 +13,7 @@
         "kv",
         "ai",
         "http",
-        "https";
+        "https"
     ],
     "author": "Ahiyan Kabir",
     "license": "GNU Affero General Public license v3.0",

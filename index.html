@@ -1,128 +1,127 @@
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>Sovereign Node | Powered by Puter.js</title>
     <script src="https://js.puter.com/v2/"></script>
     <style>
-        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; padding: 30px; }
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; padding: 30px; line-height: 1.5; }
         #terminal { max-width: 900px; margin: auto; }
-        .log-entry { margin-bottom: 15px; border-left: 2px solid #1a1a1a; padding-left: 15px; }
-        .highlight { color: #ffffff; font-weight: bold; }
-        input { background: none; border: none; color: #00ff41; width: 100%; outline: none; border-top: 1px solid #222; padding: 10px 0; font-size: 1.1em; }
+        .log-entry { margin-bottom: 15px; border-left: 2px solid #1a1a1a; padding-left: 15px; animation: fadeIn 0.3s ease; }
+        .highlight { color: #ffffff; font-weight: bold; text-shadow: 0 0 5px #00ff41; }
+        input { background: none; border: none; color: #00ff41; width: 100%; outline: none; border-top: 1px solid #222; padding: 15px 0; font-size: 1.1em; font-family: inherit; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div id="terminal">
-    <div id="display">Supervisor: Initializing Sovereign Protocol via Puter.js...</div>
+    <div id="display">Supervisor: Awaiting Handshake...</div>
     <br>
     <input type="text" id="command" placeholder="Enter topic to master..." autofocus>
 </div>
 
 <script>
-
-// --- [ SOVEREIGN CORE ] ---
-const APP_ID = "app-73f3111c-3fba-4136-8c5b-b09919ba981e"; // Replace with your UUID from Puter Console 1
+// --- [ CONFIGURATION ] ---
+const APP_ID = "app-73f3111c-3fba-4136-8c5b-b09919ba981e"; 
 let user = { name: "Pioneer", res: "Level_B", mastery: [] };
-let currentNode = null; // Stores the active lesson
+let currentNode = null; 
 
 // --- [ 1. INITIALIZATION ] ---
 async function init() {
     try {
+        // Essential: Wait for Puter to be ready before calling its methods
+        if (typeof puter === 'undefined') {
+            setTimeout(init, 100);
+            return;
+        }
+
         puter.ui.setAppId(APP_ID);
+        
+        // Identity Handshake
         const puterUser = await puter.auth.getUser();
+        if (!puterUser) {
+            print("Status: <b>Node Locked.</b> Please sign in to Puter OS.");
+            await puter.auth.signIn();
+        }
+        
         user.name = puterUser ? puterUser.username : "Pioneer";
 
+        // Memory Retrieval
         const saved = await puter.kv.get('mastery_data');
         if (saved) user = JSON.parse(saved);
 
-        print(`Welcome, <span class="highlight">${user.name}</span>. Node Online.`);
-        print(`Current Resolution: <b>${user.res}</b>. Enter a topic to begin.`);
+        print(`Welcome back, <span class="highlight">${user.name}</span>. Node Online.`);
+        print(`Current Resolution: <b>${user.res}</b>. Type a topic.`);
     } catch (err) {
-        print("<span style='color:red'>Handshake Error. Check App ID.</span>");
+        console.error(err);
+        print("<span style='color:red'>Handshake Error. Check App ID & Permissions.</span>");
     }
 }
 
 // --- [ 2. THE INTELLIGENCE ENGINE ] ---
 async function processTopic(topic) {
-    print(`<i>Supervisor: Synthesizing ${topic}...</i>`);
-    const prompt = `Return ONLY JSON for topic "${topic}". 
-    Levels: Level_A (analogy), Level_B (steps), Level_C (logic). 
-    Assessment: {q: "question", a: "answer"}.`;
+    print(`<i>Supervisor: Synthesizing ${topic} via Meta-Llama-3-8B...</i>`);
+    
+    const prompt = `Return ONLY JSON for "${topic}". 
+    {
+      "Level_A": "Simple analogy",
+      "Level_B": "Step-by-step functionality",
+      "Level_C": "First principles logic",
+      "Assessment": {"q": "Synthesis Question", "a": "Exact short answer"}
+    }`;
 
     try {
-        const response = await puter.ai.chat(prompt);
+        // Using Meta-Llama-3-8B as your requested smaller, newer model
+        const response = await puter.ai.chat(prompt, { model: 'meta-llama-3-8b-instruct' });
         const cleanJSON = response.message.content.replace(/```json|```/g, "").trim();
         currentNode = JSON.parse(cleanJSON);
         
-        // Display the lesson
-        const content = currentNode[user.res] || currentNode.Level_B;
-        print(`<br>--- [ ${topic.toUpperCase()} ] ---`);
-        print(`<span class="highlight">${content}</span>`);
-        print(`<br><b style="color:#00ff41">[GATEKEEPER]</b> ${currentNode.Assessment.q}`);
+        renderNode(topic);
     } catch (err) {
-        print("Error: Synthesis failed. Check Puter AI permissions.");
+        console.error(err);
+        print("<span style='color:red'>Synthesis Interrupted. Verify AI Permissions in Dashboard.</span>");
     }
 }
 
-// --- [ 3. THE GLOBAL COMMAND CENTER ] ---
+// --- [ 3. THE RENDER ENGINE ] ---
+function renderNode(topic) {
+    if (!currentNode) return;
+    
+    const content = currentNode[user.res] || currentNode.Level_B;
+    print(`<br>--- [ ${topic.toUpperCase()} ] ---`);
+    print(`<span class="highlight">${content}</span>`);
+    print(`<br><b style="color:#00ff41">[GATEKEEPER]</b> ${currentNode.Assessment.q}`);
+}
+
+// --- [ 4. GLOBAL COMMAND CENTER ] ---
 document.getElementById('command').addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
         const val = e.target.value.trim();
         if (!val) return;
-        e.target.value = ''; // Clear input immediately
+        e.target.value = ''; 
 
-        // CASE A: If a quiz is active (currentNode exists)
         if (currentNode) {
+            // Quiz Logic
             if (val.toLowerCase() === currentNode.Assessment.a.toLowerCase()) {
                 print("✔ <b>Precision work.</b> Mastery locked.");
-                user.mastery.push(currentNode.topic || "Unknown");
+                user.mastery.push(currentNode.topic || "Node");
                 await puter.kv.set('mastery_data', JSON.stringify(user));
-                currentNode = null; // Clear node to return to topic mode
+                currentNode = null; 
                 print("Enter your next topic.");
             } else {
-                print("✖ <b>Incomplete.</b> Scaling resolution to Level A for clarity.");
+                print("✖ <b>Incomplete.</b> Scaling to Level A for clarity.");
                 user.res = "Level_A";
                 await puter.kv.set('mastery_data', JSON.stringify(user));
-                print(`<br><b style="color:#ff4141">[RE-TRY]</b> ${currentNode.Assessment.q}`);
+                renderNode("Review"); // Show the simplified analogy
             }
-        } 
-        // CASE B: If no quiz is active, treat input as a new Topic
-        else {
+        } else {
+            // New Topic Logic
             await processTopic(val);
         }
     }
 });
 
-    async function processTopic(topic) {
-    print(`<i>Supervisor: Synthesizing ${topic} via Mini-Neural Link...</i>`);
-    
-    try {
-        // gpt-4o-mini is fast, cheap, and perfect for JSON
-        const response = await puter.ai.chat(
-            `You are a Learning Supervisor. Return ONLY JSON for "${topic}". 
-            {
-              "Level_A": "Simple analogy",
-              "Level_B": "Step-by-step",
-              "Level_C": "First principles",
-              "Assessment": {"q": "Question", "a": "Answer"}
-            }`,
-            { model: 'meta-llama-3-8b-instruct' } 
-        );
-
-        // Sanitize response (removes ```json blocks)
-        const rawContent = response.message.content.replace(/```json|```/g, "").trim();
-        currentNode = JSON.parse(rawContent);
-        
-        displayNode(currentNode, topic);
-
-    } catch (err) {
-        console.error("AI Error:", err);
-        // Fallback to Llama-3 if GPT-4o-mini is busy
-        print("<i>Supervisor: Mini-link saturated. Switching to Llama-3-8B...</i>");
-        await retryWithSmallModel(topic);
-    }
-}
 // --- [ UTILS ] ---
 function print(msg) {
     const log = document.getElementById('display');
@@ -133,6 +132,7 @@ function print(msg) {
     window.scrollTo(0, document.body.scrollHeight);
 }
 
+// Boot up
 init();
 </script>
 </body>

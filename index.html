@@ -21,98 +21,89 @@
 
 <script>
 const APP_ID = 'app-73f3111c-3fba-4136-8c5b-b09919ba981e'; // Replace with your UUID from Puter Console
+// --- [ SOVEREIGN CORE ] ---
 let user = { name: "Pioneer", res: "Level_B", mastery: [] };
+let currentNode = null; // Stores the active lesson
 
-// --- [ 1. SOVEREIGN INITIALIZATION ] ---
+// --- [ 1. INITIALIZATION ] ---
 async function init() {
     try {
-        // Essential: Link the app to the Puter ecosystem
         puter.ui.setAppId(APP_ID);
-
-        // Identity verification
-        if (!await puter.auth.isSignedIn()) {
-            print("Status: Offline. Please sign in to activate the Sovereign Node.");
-            await puter.auth.signIn();
-        }
-    // 1. Initial Handshake
-    async function init() {
         const puterUser = await puter.auth.getUser();
         user.name = puterUser ? puterUser.username : "Pioneer";
-        
-        // Load persistent data from Puter KV
+
         const saved = await puter.kv.get('mastery_data');
         if (saved) user = JSON.parse(saved);
 
-        print(`Welcome back, <span class="highlight">${user.name}</span>. The Node is ready.`);
-        print(`Current Resolution: ${user.res}. Type a topic to begin the climb.`);
+        print(`Welcome, <span class="highlight">${user.name}</span>. Node Online.`);
+        print(`Current Resolution: <b>${user.res}</b>. Enter a topic to begin.`);
+    } catch (err) {
+        print("<span style='color:red'>Handshake Error. Check App ID.</span>");
     }
+}
 
-    // 2. The Intelligence Loop (Puter AI Route)
-    async function processTopic(topic) {
-        print(`Supervisor: Synthesizing logic for "${topic}"...`);
+// --- [ 2. THE INTELLIGENCE ENGINE ] ---
+async function processTopic(topic) {
+    print(`<i>Supervisor: Synthesizing ${topic}...</i>`);
+    const prompt = `Return ONLY JSON for topic "${topic}". 
+    Levels: Level_A (analogy), Level_B (steps), Level_C (logic). 
+    Assessment: {q: "question", a: "answer"}.`;
+
+    try {
+        const response = await puter.ai.chat(prompt);
+        const cleanJSON = response.message.content.replace(/```json|```/g, "").trim();
+        currentNode = JSON.parse(cleanJSON);
         
-        const systemPrompt = `You are a Precision Learning Supervisor. 
-        Create a 3-tier node for ${topic} in JSON. 
-        Level_A: Analogy. Level_B: Functional. Level_C: First Principles. 
-        Assessment: {q: "question", a: "exact_answer"}.`;
-
-        try {
-            // Puter.js internal AI call - No API key needed in frontend
-            const response = await puter.ai.chat(systemPrompt);
-            const node = JSON.parse(response.message.content);
-            displayNode(node, topic);
-        } catch (err) {
-            print("Error: Synthesis interrupted. Ensure your Puter session is active.");
-        }
-    }
-
-    // 3. The Mastery Gate
-    function displayNode(node, topic) {
-        const content = node[user.res] || node.Level_B;
+        // Display the lesson
+        const content = currentNode[user.res] || currentNode.Level_B;
         print(`<br>--- [ ${topic.toUpperCase()} ] ---`);
         print(`<span class="highlight">${content}</span>`);
-        print(`<br>[GATEKEEPER] ${node.Assessment.q}`);
+        print(`<br><b style="color:#00ff41">[GATEKEEPER]</b> ${currentNode.Assessment.q}`);
+    } catch (err) {
+        print("Error: Synthesis failed. Check Puter AI permissions.");
+    }
+}
 
-        // Listen for the quiz answer
-        const input = document.getElementById('command');
-        const oldHandler = input.onkeydown; 
-        
-        input.onkeydown = async (e) => {
-            if (e.key === 'Enter') {
-                const ans = input.value.trim();
-                input.value = '';
-                
-                if (ans.toLowerCase() === node.Assessment.a.toLowerCase()) {
-                    print("✔ Precision work. Mastery locked.");
-                    user.mastery.push(topic);
-                    await puter.kv.set('mastery_data', JSON.stringify(user));
-                    input.onkeydown = oldHandler; // Reset to topic mode
-                } else {
-                    print("✖ Incomplete. Re-routing to Level A for clarity.");
-                    user.res = "Level_A";
-                    await puter.kv.set('mastery_data', JSON.stringify(user));
-                }
+// --- [ 3. THE GLOBAL COMMAND CENTER ] ---
+document.getElementById('command').addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+        const val = e.target.value.trim();
+        if (!val) return;
+        e.target.value = ''; // Clear input immediately
+
+        // CASE A: If a quiz is active (currentNode exists)
+        if (currentNode) {
+            if (val.toLowerCase() === currentNode.Assessment.a.toLowerCase()) {
+                print("✔ <b>Precision work.</b> Mastery locked.");
+                user.mastery.push(currentNode.topic || "Unknown");
+                await puter.kv.set('mastery_data', JSON.stringify(user));
+                currentNode = null; // Clear node to return to topic mode
+                print("Enter your next topic.");
+            } else {
+                print("✖ <b>Incomplete.</b> Scaling resolution to Level A for clarity.");
+                user.res = "Level_A";
+                await puter.kv.set('mastery_data', JSON.stringify(user));
+                print(`<br><b style="color:#ff4141">[RE-TRY]</b> ${currentNode.Assessment.q}`);
             }
-        };
-    }
-
-    function print(msg) {
-        const div = document.createElement('div');
-        div.className = 'log-entry';
-        div.innerHTML = msg;
-        document.getElementById('display').appendChild(div);
-        window.scrollTo(0, document.body.scrollHeight);
-    }
-
-    document.getElementById('command').addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter' && e.target.onkeydown === null) {
-            const val = e.target.value;
-            e.target.value = '';
+        } 
+        // CASE B: If no quiz is active, treat input as a new Topic
+        else {
             await processTopic(val);
         }
-    });
+    }
+});
 
-    init();
+// --- [ UTILS ] ---
+function print(msg) {
+    const log = document.getElementById('display');
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.innerHTML = msg;
+    log.appendChild(div);
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+init();
 </script>
 </body>
 </html>

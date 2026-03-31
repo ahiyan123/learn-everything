@@ -73,7 +73,7 @@ async function processTopic(topic) {
 
     try {
         // Using Meta-Llama-3-8B as your requested smaller, newer model
-        const response = await puter.ai.chat(prompt);
+        const response = await puter.ai.chat(prompt), { model: "mistralai/mistral-small-2603" };
         const cleanJSON = response.message.content.replace(/```json|```/g, "").trim();
         currentNode = JSON.parse(cleanJSON);
         

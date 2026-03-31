@@ -94,6 +94,35 @@ document.getElementById('command').addEventListener('keydown', async (e) => {
     }
 });
 
+    async function processTopic(topic) {
+    print(`<i>Supervisor: Synthesizing ${topic} via Mini-Neural Link...</i>`);
+    
+    try {
+        // gpt-4o-mini is fast, cheap, and perfect for JSON
+        const response = await puter.ai.chat(
+            `You are a Learning Supervisor. Return ONLY JSON for "${topic}". 
+            {
+              "Level_A": "Simple analogy",
+              "Level_B": "Step-by-step",
+              "Level_C": "First principles",
+              "Assessment": {"q": "Question", "a": "Answer"}
+            }`,
+            { model: 'meta-llama-3-8b-instruct' } 
+        );
+
+        // Sanitize response (removes ```json blocks)
+        const rawContent = response.message.content.replace(/```json|```/g, "").trim();
+        currentNode = JSON.parse(rawContent);
+        
+        displayNode(currentNode, topic);
+
+    } catch (err) {
+        console.error("AI Error:", err);
+        // Fallback to Llama-3 if GPT-4o-mini is busy
+        print("<i>Supervisor: Mini-link saturated. Switching to Llama-3-8B...</i>");
+        await retryWithSmallModel(topic);
+    }
+}
 // --- [ UTILS ] ---
 function print(msg) {
     const log = document.getElementById('display');

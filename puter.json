@@ -15,7 +15,7 @@
         "http"
     ]
     "ai_models": [
-        "meta-llama-3-8b-instruct"
+        
     ],
     "author": "Ahiyan Kabir",
     "license": "GNU Affero General Public license v3.0",

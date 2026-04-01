@@ -35,60 +35,69 @@ async function init() {
             return;
         }
 
-        puter.ui.setAppId(APP_ID);
+        // Force set the App ID
+        puter.ui.setAppId(APP_ID.trim());
         
         const puterUser = await puter.auth.getUser();
         if (!puterUser) {
-            print("Status: <b>Node Locked.</b> Please sign in to Puter OS.");
+            print("Status: <b>Node Locked.</b> Please sign in.");
             await puter.auth.signIn();
         }
         
         user.name = puterUser ? puterUser.username : "Pioneer";
 
-        const saved = await puter.kv.get('mastery_data');
-        if (saved) user = JSON.parse(saved);
+        // Try to load data, but don't crash if KV fails
+        try {
+            const saved = await puter.kv.get('mastery_data');
+            if (saved) user = JSON.parse(saved);
+        } catch (e) { console.warn("KV Storage not ready."); }
 
         print(`Welcome back, <span class="highlight">${user.name}</span>. Node Online.`);
-        print(`Current Resolution: <b>${user.res}</b>. Type a topic.`);
+        print(`Current Resolution: <b>${user.res}</b>. Enter a topic.`);
     } catch (err) {
         console.error(err);
-        print("<span style='color:red'>Handshake Error. Check App ID & Permissions.</span>");
+        print("<span style='color:red'>Handshake Error. Verify App ID in Puter Dashboard.</span>");
     }
 }
 
 // --- [ 2. THE INTELLIGENCE ENGINE ] ---
-async function processTopic(topic) {
-    // UI Feedback
-    print(`<i>Supervisor: Synthesizing ${topic} via Mistral-Small...</i>`);
+async function processTopic(topicName) {
+    print(`<i>Supervisor: Synthesizing ${topicName}...</i>`);
     
-    const prompt = `Return ONLY JSON for "${topic}". 
+    const prompt = `Return ONLY JSON for "${topicName}". 
     {
+      "topic": "${topicName}",
       "Level_A": "Simple analogy",
       "Level_B": "Step-by-step functionality",
       "Level_C": "First principles logic",
-      "Assessment": {"q": "Synthesis Question", "a": "Exact short answer"}
+      "Assessment": {"q": "Synthesis Question", "a": "Short answer"}
     }`;
 
     try {
-        // FIXED SYNTAX: The options object must be INSIDE the parentheses.
-        const response = await puter.ai.chat(prompt, { model: "mistral-small" });
+        // Attempt with Mistral-Small first
+        let response;
+        try {
+            response = await puter.ai.chat(prompt, { model: "mistral-small" });
+        } catch (e) {
+            print("<i>Link saturated. Switching to System Default...</i>");
+            response = await puter.ai.chat(prompt); // Fallback to default
+        }
         
         const cleanJSON = response.message.content.replace(/```json|```/g, "").trim();
         currentNode = JSON.parse(cleanJSON);
         
-        renderNode(topic);
+        renderNode();
     } catch (err) {
         console.error("AI Error:", err);
-        print("<span style='color:red'>Synthesis Interrupted. Verify AI Permissions in Dashboard.</span>");
+        print("<span style='color:red'>Synthesis Failed. Ensure 'AI' is checked in Dashboard Permissions.</span>");
     }
 }
 
 // --- [ 3. THE RENDER ENGINE ] ---
-function renderNode(topic) {
+function renderNode() {
     if (!currentNode) return;
-    
     const content = currentNode[user.res] || currentNode.Level_B;
-    print(`<br>--- [ ${topic.toUpperCase()} ] ---`);
+    print(`<br>--- [ ${currentNode.topic.toUpperCase()} ] ---`);
     print(`<span class="highlight">${content}</span>`);
     print(`<br><b style="color:#00ff41">[GATEKEEPER]</b> ${currentNode.Assessment.q}`);
 }
@@ -101,17 +110,18 @@ document.getElementById('command').addEventListener('keydown', async (e) => {
         e.target.value = ''; 
 
         if (currentNode) {
+            // Answer checking
             if (val.toLowerCase() === currentNode.Assessment.a.toLowerCase()) {
                 print("✔ <b>Precision work.</b> Mastery locked.");
-                user.mastery.push(topic || "Node"); // Fix: use the 'topic' variable
+                user.mastery.push(currentNode.topic); 
                 await puter.kv.set('mastery_data', JSON.stringify(user));
                 currentNode = null; 
                 print("Enter your next topic.");
             } else {
-                print("✖ <b>Incomplete.</b> Scaling to Level A for clarity.");
+                print("✖ <b>Incomplete.</b> Scaling to Level A.");
                 user.res = "Level_A";
                 await puter.kv.set('mastery_data', JSON.stringify(user));
-                renderNode("Review");
+                renderNode();
             }
         } else {
             await processTopic(val);
